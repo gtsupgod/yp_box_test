@@ -260,34 +260,44 @@ function triggerCapture(idx){
   document.getElementById('file-' + idx).click();
 }
 
-function handleFile(idx, event){
+async function handleFile(idx, event){
   const file = event.target.files[0];
   if(!file) return;
-  const img = new Image();
-  const reader = new FileReader();
-  reader.onload = e => {
-    img.onload = () => {
-      // compress/resize so the resulting Word file stays a reasonable size
-      const maxW = 1280;
-      const scale = Math.min(1, maxW / img.width);
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width * scale;
-      canvas.height = img.height * scale;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-      const landscape = canvas.width >= canvas.height;
-      if(!photos[idx]) photos[idx] = [];
-      photos[idx].push({ dataUrl, landscape });
-      renderThumbs(idx);
-      updateProgress();
-      showToast('第 ' + (idx+1) + ' 項已新增照片');
+  event.target.value = ''; // allow re-selecting immediately for another shot
+
+  try{
+    // createImageBitmap with imageOrientation:'from-image' auto-rotates the photo
+    // according to its EXIF tag — iPhone photos are otherwise drawn sideways/stretched.
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    drawAndStore(idx, bitmap, bitmap.width, bitmap.height);
+  } catch(err){
+    // Fallback for older browsers without createImageBitmap EXIF support
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => drawAndStore(idx, img, img.width, img.height);
+      img.src = e.target.result;
     };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-  // allow re-selecting immediately for another shot
-  event.target.value = '';
+    reader.readAsDataURL(file);
+  }
+}
+
+function drawAndStore(idx, source, srcW, srcH){
+  // compress/resize so the resulting Word file stays a reasonable size
+  const maxW = 1280;
+  const scale = Math.min(1, maxW / srcW);
+  const canvas = document.createElement('canvas');
+  canvas.width = srcW * scale;
+  canvas.height = srcH * scale;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
+  const landscape = canvas.width >= canvas.height;
+  if(!photos[idx]) photos[idx] = [];
+  photos[idx].push({ dataUrl, landscape });
+  renderThumbs(idx);
+  updateProgress();
+  showToast('第 ' + (idx+1) + ' 項已新增照片');
 }
 
 function removePhoto(idx, i){
