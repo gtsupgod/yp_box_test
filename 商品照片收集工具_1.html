@@ -59,7 +59,7 @@
   }
   .item{
     display:flex;
-    align-items:center;
+    align-items:flex-start;
     gap:12px;
     background:var(--card);
     border-radius:12px;
@@ -82,6 +82,7 @@
     font-weight:bold;
     font-size:14px;
     color:var(--text-dim);
+    margin-top:2px;
   }
   .item.done .num{
     background:var(--ok);
@@ -97,39 +98,50 @@
   }
   .thumb-row{
     display:flex;
+    flex-wrap:wrap;
     align-items:center;
     gap:8px;
-    margin-top:6px;
+    margin-top:8px;
+  }
+  .thumb-wrap{
+    position:relative;
+    width:56px;
+    height:56px;
   }
   .thumb{
-    width:44px;
-    height:44px;
-    border-radius:6px;
-    object-fit:cover;
-    display:none;
-    border:1px solid var(--accent);
-  }
-  .actions{
-    flex:0 0 auto;
-    display:flex;
-    flex-direction:column;
-    gap:6px;
-  }
-  .btn{
-    border:none;
+    width:56px;
+    height:56px;
     border-radius:8px;
-    padding:8px 12px;
-    font-size:13px;
-    color:#0a0a0a;
-    background:var(--accent);
-    font-weight:600;
-    white-space:nowrap;
+    object-fit:cover;
+    border:1px solid var(--accent);
+    display:block;
   }
-  .btn.secondary{
+  .thumb-remove{
+    position:absolute;
+    top:-6px;
+    right:-6px;
+    width:20px;
+    height:20px;
+    border-radius:50%;
+    background:var(--danger);
+    color:#fff;
+    border:none;
+    font-size:12px;
+    line-height:20px;
+    text-align:center;
+    padding:0;
+  }
+  .add-tile{
+    width:56px;
+    height:56px;
+    border-radius:8px;
+    border:2px dashed #4a4a66;
     background:transparent;
-    color:var(--danger);
-    border:1px solid var(--danger);
-    padding:6px 10px;
+    color:var(--accent);
+    font-size:24px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
   }
   .footer{
     position:fixed;
@@ -211,7 +223,8 @@ const ITEMS = [
 ];
 
 // in-memory only (no browser storage) — resets if page is closed
-const photos = {}; // idx -> {dataUrl, mime}
+// photos[idx] = [{dataUrl, landscape}, ...]  (multiple photos allowed per item)
+const photos = {};
 
 const listEl = document.getElementById('list');
 const genBtn = document.getElementById('genBtn');
@@ -234,17 +247,12 @@ function buildList(){
       <div class="num">${idx+1}</div>
       <div class="info">
         <div class="label">${label}</div>
-        <div class="thumb-row">
-          <img class="thumb" id="thumb-${idx}">
-        </div>
-      </div>
-      <div class="actions">
-        <button class="btn" onclick="triggerCapture(${idx})" id="capbtn-${idx}">拍照</button>
-        <button class="btn secondary" style="display:none" id="delbtn-${idx}" onclick="removePhoto(${idx})">移除</button>
+        <div class="thumb-row" id="thumbs-${idx}"></div>
       </div>
       <input type="file" accept="image/*" capture="environment" id="file-${idx}" onchange="handleFile(${idx}, event)">
     `;
     listEl.appendChild(row);
+    renderThumbs(idx);
   });
 }
 
@@ -268,64 +276,92 @@ function handleFile(idx, event){
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
-      photos[idx] = dataUrl;
-      updateItemUI(idx);
-      showToast('第 ' + (idx+1) + ' 項已拍好');
+      const landscape = canvas.width >= canvas.height;
+      if(!photos[idx]) photos[idx] = [];
+      photos[idx].push({ dataUrl, landscape });
+      renderThumbs(idx);
+      updateProgress();
+      showToast('第 ' + (idx+1) + ' 項已新增照片');
     };
     img.src = e.target.result;
   };
   reader.readAsDataURL(file);
-  // allow re-selecting the same slot later
+  // allow re-selecting immediately for another shot
   event.target.value = '';
 }
 
-function removePhoto(idx){
-  delete photos[idx];
-  updateItemUI(idx);
-}
-
-function updateItemUI(idx){
-  const row = document.getElementById('item-' + idx);
-  const thumb = document.getElementById('thumb-' + idx);
-  const capBtn = document.getElementById('capbtn-' + idx);
-  const delBtn = document.getElementById('delbtn-' + idx);
-  if(photos[idx]){
-    row.classList.add('done');
-    thumb.src = photos[idx];
-    thumb.style.display = 'inline-block';
-    capBtn.textContent = '重拍';
-    delBtn.style.display = 'inline-block';
-  } else {
-    row.classList.remove('done');
-    thumb.style.display = 'none';
-    capBtn.textContent = '拍照';
-    delBtn.style.display = 'none';
-  }
+function removePhoto(idx, i){
+  if(!photos[idx]) return;
+  photos[idx].splice(i, 1);
+  if(photos[idx].length === 0) delete photos[idx];
+  renderThumbs(idx);
   updateProgress();
 }
 
+function renderThumbs(idx){
+  const wrap = document.getElementById('thumbs-' + idx);
+  const row = document.getElementById('item-' + idx);
+  const list = photos[idx] || [];
+  let html = '';
+  list.forEach((p, i) => {
+    html += `
+      <div class="thumb-wrap">
+        <img class="thumb" src="${p.dataUrl}">
+        <button class="thumb-remove" onclick="removePhoto(${idx}, ${i})">×</button>
+      </div>
+    `;
+  });
+  html += `<button class="add-tile" onclick="triggerCapture(${idx})">＋</button>`;
+  wrap.innerHTML = html;
+  if(list.length > 0){
+    row.classList.add('done');
+  } else {
+    row.classList.remove('done');
+  }
+}
+
 function updateProgress(){
-  const count = Object.keys(photos).length;
-  progressEl.textContent = `已拍 ${count} / ${ITEMS.length} 項`;
-  genBtn.disabled = count === 0;
+  const count = Object.keys(photos).filter(k => photos[k] && photos[k].length > 0).length;
+  const totalPhotos = Object.values(photos).reduce((s, arr) => s + arr.length, 0);
+  progressEl.textContent = `已拍 ${count} / ${ITEMS.length} 項（共 ${totalPhotos} 張）`;
+  genBtn.disabled = totalPhotos === 0;
 }
 
 function escapeHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+// The original template's first page (checklist of all 17 items) — kept as-is at the top of every generated doc.
+function buildInstructionsHtml(){
+  let html = `<p style="font-family:'Microsoft JhengHei';font-size:15pt;font-weight:bold;">外箱及內容物照片上傳範例</p>`;
+  html += `<p style="font-family:'Microsoft JhengHei';">總共要上傳的照片有下列項目，上傳照片請依下列順序提供：</p>`;
+  ITEMS.forEach((label, idx) => {
+    html += `<p style="font-family:'Microsoft JhengHei';">(${idx+1}) ${escapeHtml(label)}</p>`;
+    if(idx === 1){
+      html += `<p style="font-family:'Microsoft JhengHei';">（若外箱上有另一組外箱條碼時，要附上劃粗破壞結構或是貼住錯誤條碼的照片）</p>`;
+    }
+  });
+  html += `<p style="font-family:'Microsoft JhengHei';"><b>請廠商依照此方式與順序上傳。</b></p>`;
+  // force a page break so the actual photos start on page 2
+  html += `<br clear=all style='page-break-before:always'>`;
+  return html;
+}
+
 function generateDoc(){
   const name = document.getElementById('productName').value.trim();
   const title = name ? name + ' 照片' : '商品照片';
 
-  let bodyHtml = `<h2 style="font-family:'Microsoft JhengHei';">${escapeHtml(title)}</h2>`;
+  let bodyHtml = buildInstructionsHtml();
+  bodyHtml += `<h2 style="font-family:'Microsoft JhengHei';">${escapeHtml(title)}</h2>`;
 
   ITEMS.forEach((label, idx) => {
-    if(!photos[idx]) return; // skip items without a photo, per instructions
-    bodyHtml += `
-      <p style="font-family:'Microsoft JhengHei';font-size:14pt;font-weight:bold;">(${idx+1}) ${escapeHtml(label)}</p>
-      <p><img src="${photos[idx]}" width="500"></p>
-    `;
+    const list = photos[idx];
+    if(!list || list.length === 0) return; // skip items without a photo
+    bodyHtml += `<p style="font-family:'Microsoft JhengHei';font-size:14pt;font-weight:bold;">(${idx+1}) ${escapeHtml(label)}</p>`;
+    list.forEach(p => {
+      const widthIn = p.landscape ? '5.5in' : '3in';
+      bodyHtml += `<p><img style="width:${widthIn};height:auto;" src="${p.dataUrl}"></p>`;
+    });
   });
 
   const html = `<!DOCTYPE html>
