@@ -213,7 +213,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const TOOL_VERSION = 'v2026.08.17.0807';
+const TOOL_VERSION = 'v2026.08.17 08:19';
 const ITEMS = [
   "外箱正面(外箱長面)（請將外箱上蓋向下折好再拍）",
   "外箱45度角（要拍到箱上蓋與箱長面與箱側邊資訊）",
@@ -373,13 +373,8 @@ function generateDoc(){
   const name = document.getElementById('productName').value.trim();
   const title = name ? name + ' 照片' : '商品照片';
 
-  const now = new Date();
-  const pad = n => String(n).padStart(2,'0');
-  const genTime = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
-
   let bodyHtml = buildInstructionsHtml();
   bodyHtml += `<h2 style="font-family:'Microsoft JhengHei';">${escapeHtml(title)}</h2>`;
-  bodyHtml += `<p style="font-family:'Microsoft JhengHei';font-size:9pt;color:#888888;">工具版本：裕品 ${TOOL_VERSION}　產生時間：${genTime}</p>`;
 
   ITEMS.forEach((label, idx) => {
     const list = photos[idx];
@@ -398,7 +393,12 @@ function generateDoc(){
       }
       wIn = wIn.toFixed(2);
       hIn = hIn.toFixed(2);
-      bodyHtml += `<p><img style="width:${wIn}in;height:${hIn}in;" src="${p.dataUrl}"></p>`;
+      // Word's HTML importer sizes images mainly off the <img> width/height PIXEL attributes,
+      // not the CSS style — without these it falls back to the source photo's raw pixel count
+      // treated as inches (a 1280px-wide photo would render ~13in wide). Provide both.
+      const wPx = Math.round(wIn * 96);
+      const hPx = Math.round(hIn * 96);
+      bodyHtml += `<p><img width="${wPx}" height="${hPx}" style="width:${wIn}in;height:${hIn}in;" src="${p.dataUrl}"></p>`;
     });
   });
 
