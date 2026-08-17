@@ -46,6 +46,16 @@
     color:var(--text);
     font-size:15px;
   }
+  .version-tag{
+    display:inline-block;
+    font-size:11px;
+    color:var(--text-dim);
+    background:#16161f;
+    border:1px solid #3a3a52;
+    border-radius:6px;
+    padding:2px 8px;
+    margin-bottom:8px;
+  }
   .progress{
     margin-top:8px;
     font-size:13px;
@@ -189,6 +199,7 @@
 
 <header>
   <h1>📷 商品照片收集 → 自動產生 Word</h1>
+  <div class="version-tag" id="versionTag">裕品 載入中...</div>
   <input class="product-input" id="productName" placeholder="商品名稱（會用在檔名與標題，選填）">
   <div class="progress" id="progress">已拍 0 / 17 項</div>
 </header>
@@ -202,6 +213,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
+const TOOL_VERSION = 'v2026.08.17.0807';
 const ITEMS = [
   "外箱正面(外箱長面)（請將外箱上蓋向下折好再拍）",
   "外箱45度角（要拍到箱上蓋與箱長面與箱側邊資訊）",
@@ -294,7 +306,7 @@ function drawAndStore(idx, source, srcW, srcH){
   const dataUrl = canvas.toDataURL('image/jpeg', 0.75);
   const landscape = canvas.width >= canvas.height;
   if(!photos[idx]) photos[idx] = [];
-  photos[idx].push({ dataUrl, landscape });
+  photos[idx].push({ dataUrl, landscape, pxW: canvas.width, pxH: canvas.height });
   renderThumbs(idx);
   updateProgress();
   showToast('第 ' + (idx+1) + ' 項已新增照片');
@@ -361,16 +373,32 @@ function generateDoc(){
   const name = document.getElementById('productName').value.trim();
   const title = name ? name + ' 照片' : '商品照片';
 
+  const now = new Date();
+  const pad = n => String(n).padStart(2,'0');
+  const genTime = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
   let bodyHtml = buildInstructionsHtml();
   bodyHtml += `<h2 style="font-family:'Microsoft JhengHei';">${escapeHtml(title)}</h2>`;
+  bodyHtml += `<p style="font-family:'Microsoft JhengHei';font-size:9pt;color:#888888;">工具版本：裕品 ${TOOL_VERSION}　產生時間：${genTime}</p>`;
 
   ITEMS.forEach((label, idx) => {
     const list = photos[idx];
     if(!list || list.length === 0) return; // skip items without a photo
     bodyHtml += `<p style="font-family:'Microsoft JhengHei';font-size:14pt;font-weight:bold;">(${idx+1}) ${escapeHtml(label)}</p>`;
     list.forEach(p => {
-      const widthIn = p.landscape ? '5.5in' : '3in';
-      bodyHtml += `<p><img style="width:${widthIn};height:auto;" src="${p.dataUrl}"></p>`;
+      // compute explicit width AND height in inches (never rely on "auto" — Word's HTML
+      // import doesn't reliably compute it and can fall back to the raw pixel count as inches).
+      const maxWIn = p.landscape ? 5.5 : 3;
+      const maxHIn = 7; // safety cap so an unusually tall/wide source photo can't blow up the page
+      const ratio = p.pxH / p.pxW;
+      let wIn = maxWIn, hIn = maxWIn * ratio;
+      if(hIn > maxHIn){
+        hIn = maxHIn;
+        wIn = maxHIn / ratio;
+      }
+      wIn = wIn.toFixed(2);
+      hIn = hIn.toFixed(2);
+      bodyHtml += `<p><img style="width:${wIn}in;height:${hIn}in;" src="${p.dataUrl}"></p>`;
     });
   });
 
@@ -421,6 +449,7 @@ ${bodyHtml}
   showToast('已產生：' + fname);
 }
 
+document.getElementById('versionTag').textContent = '裕品 ' + TOOL_VERSION;
 buildList();
 </script>
 
