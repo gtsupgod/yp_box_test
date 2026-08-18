@@ -207,13 +207,14 @@
 <div class="list" id="list"></div>
 
 <div class="footer">
+  <div id="manualLinkArea"></div>
   <button class="generate-btn" id="genBtn" disabled onclick="generateDoc()">產生 Word 文件</button>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const TOOL_VERSION = 'v2026.08.18 09:28';
+const TOOL_VERSION = 'v2026.08.18 13:07';
 const ITEMS = [
   "外箱正面(外箱長面)（請將外箱上蓋向下折好再拍）",
   "外箱45度角（要拍到箱上蓋與箱長面與箱側邊資訊）",
@@ -369,6 +370,11 @@ function buildInstructionsHtml(){
   return html;
 }
 
+function showManualLink(url, fname){
+  const area = document.getElementById('manualLinkArea');
+  area.innerHTML = `<a href="${url}" download="${fname}" style="display:block;text-align:center;background:#16161f;color:var(--accent);border:1px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:8px;text-decoration:none;font-size:14px;">⬇️ 如果沒有自動下載，點這裡手動下載「${fname}」</a>`;
+}
+
 function generateDoc(){
  try {
   const name = document.getElementById('productName').value.trim();
@@ -440,13 +446,19 @@ ${bodyHtml}
 
   // Desktop browsers / Android Chrome: normal download works fine.
   const url = URL.createObjectURL(blob);
+
+  // Try the automatic download first...
   const a = document.createElement('a');
   a.href = url;
   a.download = fname;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+  // ...and ALSO show a real, visible link the user can click themselves —
+  // some corporate security policies silently block script-triggered downloads,
+  // but a link the person actually clicks with their mouse usually still works.
+  showManualLink(url, fname);
   showToast('已產生：' + fname);
  } catch(err){
    console.error(err);
