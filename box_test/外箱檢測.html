@@ -214,7 +214,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const TOOL_VERSION = 'v2026.08.18 13:15';
+const TOOL_VERSION = 'v2026.08.18 13:31';
 const ITEMS = [
   "外箱正面(外箱長面)（請將外箱上蓋向下折好再拍）",
   "外箱45度角（要拍到箱上蓋與箱長面與箱側邊資訊）",
@@ -350,6 +350,8 @@ function updateProgress(){
   genBtn.disabled = totalPhotos === 0;
 }
 
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
 function escapeHtml(s){
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
@@ -468,7 +470,7 @@ ${bodyHtml}
   // iPhone / iPad Safari: Web Share API lets the user save straight to Files,
   // AirDrop, LINE, Mail, etc. — the normal <a download> trick is unreliable on iOS Safari.
   const file = new File([blob], fname, { type: 'application/msword' });
-  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+  if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
     navigator.share({ files: [file], title: fname })
       .then(() => showToast('已產生，請選擇「儲存至檔案」'))
       .catch(() => { /* user cancelled the share sheet — do nothing */ });
