@@ -370,6 +370,7 @@ function buildInstructionsHtml(){
 }
 
 function generateDoc(){
+ try {
   const name = document.getElementById('productName').value.trim();
   const title = name ? name + ' 照片' : '商品照片';
 
@@ -447,6 +448,10 @@ ${bodyHtml}
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 5000);
   showToast('已產生：' + fname);
+ } catch(err){
+   console.error(err);
+   alert('產生失敗：' + err.message);
+ }
 }
 
 document.getElementById('versionTag').textContent = '裕品 ' + TOOL_VERSION;
