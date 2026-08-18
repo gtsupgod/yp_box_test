@@ -207,14 +207,13 @@
 <div class="list" id="list"></div>
 
 <div class="footer">
-  <div id="manualLinkArea"></div>
   <button class="generate-btn" id="genBtn" disabled onclick="generateDoc()">產生 Word 文件</button>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-const TOOL_VERSION = 'v2026.08.18 13:31';
+const TOOL_VERSION = 'v2026.08.18 13:34';
 const ITEMS = [
   "外箱正面(外箱長面)（請將外箱上蓋向下折好再拍）",
   "外箱45度角（要拍到箱上蓋與箱長面與箱側邊資訊）",
@@ -372,42 +371,6 @@ function buildInstructionsHtml(){
   return html;
 }
 
-function showManualLink(url, fname){
-  const area = document.getElementById('manualLinkArea');
-  area.innerHTML = `<a href="${url}" download="${fname}" style="display:block;text-align:center;background:#16161f;color:var(--accent);border:1px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:8px;text-decoration:none;font-size:14px;">⬇️ 方法一：點這裡手動下載「${fname}」</a>`;
-}
-
-function addDataUriLink(blob, fname){
-  const area = document.getElementById('manualLinkArea');
-  const reader = new FileReader();
-  reader.onload = () => {
-    const a = document.createElement('a');
-    a.href = reader.result; // data: URI — some security policies only block blob: links, not data:
-    a.download = fname;
-    a.textContent = '⬇️ 方法二（如果方法一沒反應）：點這裡下載';
-    a.style.cssText = 'display:block;text-align:center;background:#16161f;color:var(--accent);border:1px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:8px;text-decoration:none;font-size:14px;';
-    area.appendChild(a);
-  };
-  reader.readAsDataURL(blob);
-}
-
-function showOpenTabFallback(html, fname){
-  const area = document.getElementById('manualLinkArea');
-  const btn = document.createElement('button');
-  btn.textContent = '📄 方法三（都不行的話）：在新分頁開啟內容，用 Ctrl+S 另存';
-  btn.style.cssText = 'display:block;width:100%;text-align:center;background:#16161f;color:var(--accent);border:1px solid var(--accent);border-radius:10px;padding:10px;margin-bottom:8px;font-size:14px;';
-  btn.onclick = () => {
-    const win = window.open('', '_blank');
-    if(!win){ alert('新分頁被瀏覽器擋掉了，麻煩允許彈出視窗後再試一次'); return; }
-    win.document.open();
-    win.document.write(html);
-    win.document.close();
-    win.document.title = fname;
-    alert('已在新分頁開啟。請在該分頁按 Ctrl+S（或右上角選單→列印/另存），存檔類型選「所有檔案」，檔名記得打成「' + fname + '」');
-  };
-  area.appendChild(btn);
-}
-
 function generateDoc(){
  try {
   const name = document.getElementById('productName').value.trim();
@@ -491,9 +454,7 @@ ${bodyHtml}
   // ...and ALSO show a real, visible link the user can click themselves —
   // some corporate security policies silently block script-triggered downloads,
   // but a link the person actually clicks with their mouse usually still works.
-  showManualLink(url, fname);
-  addDataUriLink(blob, fname);
-  showOpenTabFallback(html, fname);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
   showToast('已產生：' + fname);
  } catch(err){
    console.error(err);
