@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>主檔圖 → 自動排版 PPT</title>
+<style>
+  :root{
+    --bg:#1e1e2e;
+    --card:#2a2a3c;
+    --accent:#4fc3f7;
+    --accent-dark:#2196c9;
+    --text:#e6e6e6;
+    --text-dim:#9a9ab0;
+    --danger:#ff6b6b;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"Microsoft JhengHei UI","Microsoft JhengHei",-apple-system,sans-serif;
+    padding-bottom:100px;
+  }
+  header{
+    padding:16px 16px 10px;
+    position:sticky;
+    top:0;
+    background:var(--bg);
+    z-index:10;
+    border-bottom:1px solid #3a3a52;
+  }
+  h1{
+    font-size:18px;
+    margin:0 0 8px;
+    color:var(--accent);
+  }
+  .version-tag{
+    display:inline-block;
+    font-size:11px;
+    color:var(--text-dim);
+    background:#16161f;
+    border:1px solid #3a3a52;
+    border-radius:6px;
+    padding:2px 8px;
+    margin-bottom:10px;
+  }
+  section{
+    padding:12px 16px;
+  }
+  .section-title{
+    font-size:13px;
+    color:var(--text-dim);
+    margin:4px 0 8px;
+  }
+  .field-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
+  .field-grid .full{
+    grid-column:1 / -1;
+  }
+  label{
+    font-size:12px;
+    color:var(--text-dim);
+    display:block;
+    margin-bottom:3px;
+  }
+  input[type=text]{
+    width:100%;
+    padding:9px 10px;
+    border-radius:8px;
+    border:1px solid #3a3a52;
+    background:#16161f;
+    color:var(--text);
+    font-size:14px;
+  }
+  .thumb-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    margin-top:6px;
+  }
+  .thumb-wrap{
+    position:relative;
+    width:72px;
+    height:72px;
+  }
+  .thumb{
+    width:72px;
+    height:72px;
+    border-radius:8px;
+    object-fit:cover;
+    border:1px solid var(--accent);
+    display:block;
+  }
+  .thumb-remove{
+    position:absolute;
+    top:-6px;
+    right:-6px;
+    width:22px;
+    height:22px;
+    border-radius:50%;
+    background:var(--danger);
+    color:#fff;
+    border:none;
+    font-size:13px;
+    line-height:22px;
+    text-align:center;
+    padding:0;
+  }
+  .add-tile{
+    width:72px;
+    height:72px;
+    border-radius:8px;
+    border:2px dashed #4a4a66;
+    background:transparent;
+    color:var(--accent);
+    font-size:28px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .count{
+    margin-top:8px;
+    font-size:13px;
+    color:var(--text-dim);
+  }
+  .footer{
+    position:fixed;
+    bottom:0;
+    left:0;
+    right:0;
+    padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(30,30,46,0) 0%, var(--bg) 30%);
+  }
+  .generate-btn{
+    width:100%;
+    padding:16px;
+    border:none;
+    border-radius:12px;
+    background:var(--accent);
+    color:#0a0a0a;
+    font-size:16px;
+    font-weight:700;
+  }
+  .generate-btn:disabled{
+    background:#3a3a52;
+    color:var(--text-dim);
+  }
+  .hint{
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:6px;
+  }
+  input[type=file]{display:none;}
+  .toast{
+    position:fixed;
+    top:16px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#5ee38c;
+    color:#0a0a0a;
+    padding:10px 18px;
+    border-radius:20px;
+    font-size:14px;
+    font-weight:600;
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .3s;
+    z-index:100;
+  }
+  .toast.show{opacity:1;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🖼️ 主檔圖 → 自動排版 PPT</h1>
+  <div class="version-tag" id="versionTag">裕品 載入中...</div>
+</header>
+
+<section>
+  <div class="section-title">商品資料（全部要填才能產生）</div>
+  <div class="field-grid">
+    <div><label>廠編</label><input type="text" id="f_code"></div>
+    <div><label>廠名</label><input type="text" id="f_vendor"></div>
+    <div class="full"><label>品名</label><input type="text" id="f_name"></div>
+    <div><label>規格</label><input type="text" id="f_spec"></div>
+    <div><label>條碼</label><input type="text" id="f_barcode"></div>
+    <div><label>箱入數</label><input type="text" id="f_caseqty"></div>
+    <div><label>保存期限</label><input type="text" id="f_shelf"></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-title">商品照片（不分項次，拍多少張都可以）</div>
+  <div class="thumb-row" id="thumbs"></div>
+  <div class="count" id="count">已拍 0 張</div>
+  <div class="hint">拍好後程式會自動排版成一張PPT，位置/大小同仁之後可以在PowerPoint裡再微調</div>
+</section>
+
+<input type="file" accept="image/*" capture="environment" id="fileInput" onchange="handleFile(event)">
+
+<div class="footer">
+  <button class="generate-btn" id="genBtn" disabled onclick="generateDoc()">產生 PPT 文件</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TOOL_VERSION = 'v2026.08.18 09:28';
+document.getElementById('versionTag').textContent = '裕品 ' + TOOL_VERSION;
+
+// in-memory only — resets if page is closed
+let photos = []; // {dataUrl, pxW, pxH}
+
+const thumbsEl = document.getElementById('thumbs');
+const countEl = document.getElementById('count');
+const genBtn = document.getElementById('genBtn');
+const toastEl = document.getElementById('toast');
+const fields = ['f_code','f_vendor','f_name','f_spec','f_barcode','f_caseqty','f_shelf'];
+
+function showToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  setTimeout(()=>toastEl.classList.remove('show'), 1500);
+}
+
+function triggerCapture(){
+  document.getElementById('fileInput').click();
+}
+
+async function handleFile(event){
+  const file = event.target.files[0];
+  if(!file) return;
+  event.target.value = '';
+  try{
+    const bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    drawAndStore(bitmap, bitmap.width, bitmap.height);
+  } catch(err){
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => drawAndStore(img, img.width, img.height);
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function drawAndStore(source, srcW, srcH){
+  const maxW = 1280;
+  const scale = Math.min(1, maxW / srcW);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(srcW * scale);
+  canvas.height = Math.round(srcH * scale);
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  photos.push({ dataUrl, pxW: canvas.width, pxH: canvas.height });
+  renderThumbs();
+  showToast('已新增照片');
+}
+
+function removePhoto(i){
+  photos.splice(i, 1);
+  renderThumbs();
+}
+
+function renderThumbs(){
+  let html = '';
+  photos.forEach((p, i) => {
+    html += `
+      <div class="thumb-wrap">
+        <img class="thumb" src="${p.dataUrl}">
+        <button class="thumb-remove" onclick="removePhoto(${i})">×</button>
+      </div>
+    `;
+  });
+  html += `<button class="add-tile" onclick="triggerCapture()">＋</button>`;
+  thumbsEl.innerHTML = html;
+  countEl.textContent = `已拍 ${photos.length} 張`;
+  checkReady();
+}
+
+function checkReady(){
+  const allFilled = fields.every(id => document.getElementById(id).value.trim().length > 0);
+  genBtn.disabled = !(allFilled && photos.length > 0);
+}
+
+fields.forEach(id => document.getElementById(id).addEventListener('input', checkReady));
+
+// compute a grid (cols/rows) that best fills areaW x areaH for n photos
+function computeGrid(n, areaW, areaH){
+  let best = null;
+  for(let cols = 1; cols <= n; cols++){
+    const rows = Math.ceil(n / cols);
+    const cellW = areaW / cols;
+    const cellH = areaH / rows;
+    const score = Math.min(cellW, cellH);
+    if(!best || score > best.score){
+      best = { cols, rows, cellW, cellH, score };
+    }
+  }
+  return best;
+}
+
+let pptxLibLoading = null;
+function loadPptxLib(){
+  if(window.PptxGenJS) return Promise.resolve();
+  if(pptxLibLoading) return pptxLibLoading;
+  pptxLibLoading = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/gh/gitbrent/pptxgenjs@3.12.0/dist/pptxgen.bundle.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('pptxgenjs 載入失敗，請確認網路連線'));
+    document.head.appendChild(s);
+  });
+  return pptxLibLoading;
+}
+
+async function generateDoc(){
+  genBtn.disabled = true;
+  genBtn.textContent = '產生中...';
+  try{
+    await loadPptxLib();
+
+    const val = id => document.getElementById(id).value.trim();
+    const name = val('f_name');
+
+    const pres = new PptxGenJS();
+    pres.defineLayout({ name: 'YP', width: 13.33, height: 7.5 });
+    pres.layout = 'YP';
+    const slide = pres.addSlide();
+
+    // info table (left side)
+    const rows = [
+      ['廠編', val('f_code')],
+      ['廠名', val('f_vendor')],
+      ['品名', val('f_name')],
+      ['規格', val('f_spec')],
+      ['條碼', val('f_barcode')],
+      ['箱入數', val('f_caseqty')],
+      ['保存期限', val('f_shelf')],
+    ].map(([label, value]) => ([
+      { text: label, options: { bold: true, fill: { color: 'F2F2F2' }, fontSize: 11, valign: 'middle' } },
+      { text: value, options: { fontSize: 11, valign: 'middle' } },
+    ]));
+
+    slide.addTable(rows, {
+      x: 0.4, y: 0.4, w: 3.9,
+      colW: [1.1, 2.8],
+      border: { type: 'solid', color: 'CCCCCC', pt: 0.75 },
+      autoPage: false,
+    });
+
+    // photo grid (right side)
+    const areaX = 4.6, areaY = 0.4, areaW = 13.33 - 4.6 - 0.4, areaH = 7.5 - 0.8;
+    const grid = computeGrid(photos.length, areaW, areaH);
+    const pad = 0.08;
+
+    photos.forEach((p, i) => {
+      const col = i % grid.cols;
+      const row = Math.floor(i / grid.cols);
+      const cellX = areaX + col * grid.cellW;
+      const cellY = areaY + row * grid.cellH;
+      const w = grid.cellW - pad * 2;
+      const h = grid.cellH - pad * 2;
+      slide.addImage({
+        data: p.dataUrl,
+        x: cellX + pad, y: cellY + pad, w, h,
+        sizing: { type: 'contain', w, h },
+      });
+    });
+
+    const blob = await pres.write({ outputType: 'blob' });
+    const fname = (name || '商品照片') + '.pptx';
+    const file = new File([blob], fname, { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try{
+        await navigator.share({ files: [file], title: fname });
+        showToast('已產生，請選擇「儲存至檔案」');
+      } catch(e) { /* user cancelled */ }
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      showToast('已產生：' + fname);
+    }
+  } catch(err){
+    showToast('產生失敗：' + err.message);
+  } finally {
+    genBtn.textContent = '產生 PPT 文件';
+    checkReady();
+  }
+}
+
+renderThumbs();
+</script>
+
+</body>
+</html>
