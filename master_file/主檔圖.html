@@ -310,7 +310,7 @@
 
 </script>
 <script>
-const TOOL_VERSION = 'v2026.08.18 11:33';
+const TOOL_VERSION = 'v2026.08.18 13:34';
 document.getElementById('versionTag').textContent = '裕品 ' + TOOL_VERSION;
 
 // in-memory only — resets if page is closed
@@ -327,6 +327,8 @@ function showToast(msg){
   toastEl.classList.add('show');
   setTimeout(()=>toastEl.classList.remove('show'), 1500);
 }
+
+const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
 function triggerCapture(){
   document.getElementById('fileInput').click();
@@ -410,8 +412,6 @@ function computeGrid(n, areaW, areaH){
   return best;
 }
 
-
-
 async function generateDoc(){
   genBtn.disabled = true;
   genBtn.textContent = '產生中...';
@@ -468,7 +468,7 @@ async function generateDoc(){
     const fname = (name || '商品照片') + '.pptx';
     const file = new File([blob], fname, { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
       try{
         await navigator.share({ files: [file], title: fname });
         showToast('已產生，請選擇「儲存至檔案」');
