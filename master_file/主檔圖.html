@@ -182,7 +182,7 @@
 </header>
 
 <section>
-  <div class="section-title">商品資料（全部要填才能產生）</div>
+  <div class="section-title">商品資料（選填，有填才會顯示在PPT上）</div>
   <div class="field-grid">
     <div><label>廠編</label><input type="text" id="f_code"></div>
     <div><label>廠名</label><input type="text" id="f_vendor"></div>
@@ -199,6 +199,7 @@
   <div class="thumb-row" id="thumbs"></div>
   <div class="count" id="count">已拍 0 張</div>
   <div class="hint">拍好後程式會自動排版成一張PPT，位置/大小同仁之後可以在PowerPoint裡再微調</div>
+  <div class="hint">上面欄位選填，有填的會顯示在PPT上，沒填的欄位會留空</div>
 </section>
 
 <input type="file" accept="image/*" capture="environment" id="fileInput" onchange="handleFile(event)">
@@ -285,9 +286,12 @@ function renderThumbs(){
   checkReady();
 }
 
+const fieldLabels = { f_code:'廠編', f_vendor:'廠名', f_name:'品名', f_spec:'規格', f_barcode:'條碼', f_caseqty:'箱入數', f_shelf:'保存期限' };
+
 function checkReady(){
-  const allFilled = fields.every(id => document.getElementById(id).value.trim().length > 0);
-  genBtn.disabled = !(allFilled && photos.length > 0);
+  // fields are all optional now — only photos are required to generate.
+  // whatever fields are filled in will show on the PPT, blank ones stay blank.
+  genBtn.disabled = photos.length === 0;
 }
 
 fields.forEach(id => document.getElementById(id).addEventListener('input', checkReady));
